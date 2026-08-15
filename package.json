@@ -33,6 +33,7 @@
     "test:security": "npm run build && node --test dist/test/security/*.test.js",
     "test:protocol": "npm run build && node --test dist/test/protocol/*.test.js",
     "test:live": "npm run build && node dist/scripts/live-smoke.js",
+    "release:preflight": "npm run build && node scripts/release-preflight.mjs",
     "verify": "npm run format && npm run lint && npm run typecheck && npm test && npm run test:integration && npm run test:security && npm run test:protocol && npm run build"
   },
   "dependencies": {
