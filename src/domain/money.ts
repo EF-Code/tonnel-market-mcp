@@ -144,6 +144,20 @@ export function subtractDecimal(
   );
 }
 
+export function multiplyDecimal(
+  left: string | number,
+  right: string | number,
+): DecimalString {
+  const a = partsFromValue(left);
+  const b = partsFromValue(right);
+  return formatParts(
+    normalizeParts({
+      coefficient: a.coefficient * b.coefficient,
+      scale: a.scale + b.scale,
+    }),
+  );
+}
+
 export function averageDecimal(values: Array<string | number>): DecimalString {
   if (values.length === 0)
     throw new AppError(
@@ -176,6 +190,36 @@ export function divideDecimal(
   return formatParts({ coefficient, scale: parts.scale + precision });
 }
 
+export function ratioDecimal(
+  numerator: string | number,
+  denominator: string | number,
+  precision = 8,
+): DecimalString {
+  if (compareDecimal(denominator, 0) === 0) {
+    throw new AppError(
+      "INVALID_ARGUMENT",
+      "Decimal denominator cannot be zero.",
+    );
+  }
+  if (!Number.isInteger(precision) || precision < 0 || precision > 100) {
+    throw new AppError(
+      "INVALID_ARGUMENT",
+      "Decimal precision is outside the supported range.",
+    );
+  }
+  const numeratorParts = partsFromValue(numerator);
+  const denominatorParts = partsFromValue(denominator);
+  const scaledNumerator =
+    numeratorParts.coefficient *
+    10n ** BigInt(denominatorParts.scale + precision);
+  const scaledDenominator =
+    denominatorParts.coefficient * 10n ** BigInt(numeratorParts.scale);
+  return formatParts({
+    coefficient: scaledNumerator / scaledDenominator,
+    scale: precision,
+  });
+}
+
 export function decimalToNumber(value: string | number): number {
   const parsed = Number(decimal(value));
   if (!Number.isFinite(parsed)) {
@@ -192,16 +236,5 @@ export function percentDifference(
   reference: string | number,
 ): DecimalString | null {
   if (compareDecimal(reference, 0) === 0) return null;
-  const numerator = subtractDecimal(observed, reference);
-  const numeratorParts = partsFromValue(numerator);
-  const denominatorParts = partsFromValue(reference);
-  const [alignedNumerator, alignedDenominator] = align(
-    numeratorParts,
-    denominatorParts,
-  );
-  const scale = 8;
-  const scaled =
-    (alignedNumerator.coefficient * 10n ** BigInt(scale)) /
-    alignedDenominator.coefficient;
-  return formatParts(normalizeParts({ coefficient: scaled, scale }));
+  return ratioDecimal(subtractDecimal(observed, reference), reference);
 }
