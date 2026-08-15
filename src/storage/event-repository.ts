@@ -310,14 +310,22 @@ export class EventRepository {
       .run(serverTime, updatedAt);
   }
 
+  recordProcessingError(
+    _error: unknown,
+    updatedAt = new Date().toISOString(),
+  ): void {
+    this.incrementCounter("processing_error_count", updatedAt);
+  }
+
   private incrementCounter(
     column: "duplicate_count" | "processing_error_count",
+    updatedAt = new Date().toISOString(),
   ): void {
     this.db
       .prepare(
         `UPDATE collector_state SET ${column} = ${column} + 1, updated_at = ? WHERE id = 1`,
       )
-      .run(new Date().toISOString());
+      .run(updatedAt);
   }
 
   private recordFailure(
