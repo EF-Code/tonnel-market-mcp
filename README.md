@@ -11,7 +11,7 @@ It does not represent or speak for Tonnel, Telegram, TON, or any marketplace. It
 - Network access to the public upstream API only when the collector is running.
 
 ```sh
-git clone <repository-url> tonnel-market-mcp
+git clone https://github.com/EF-Code/tonnel-market-mcp.git
 cd tonnel-market-mcp
 npm ci
 npm run build
