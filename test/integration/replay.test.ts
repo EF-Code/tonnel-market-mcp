@@ -140,7 +140,6 @@ test("collector buffers live events until replay recovery and then commits both 
   });
   const collector = new MarketplaceCollector({
     config: { websocketUrl: "wss://example.test/ws" },
-    database,
     events,
     projections,
     coverage,
@@ -211,7 +210,6 @@ test("expired replay cursors record a coverage gap before restarting from the re
   });
   const collector = new MarketplaceCollector({
     config: { websocketUrl: "wss://example.test/ws" },
-    database,
     events,
     projections,
     coverage,
@@ -255,7 +253,6 @@ test("collector reconnects after the upstream 1013 slow-client close", async () 
   });
   const collector = new MarketplaceCollector({
     config: { websocketUrl: "wss://example.test/ws" },
-    database,
     events,
     projections,
     coverage,

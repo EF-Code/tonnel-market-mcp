@@ -42,7 +42,6 @@ export function createRuntime(config: AppConfig): RuntimeServices {
   const replay = new ReplayClient({ endpoint: replayEndpoint(config) });
   const collector = new MarketplaceCollector({
     config,
-    database,
     events,
     projections,
     coverage: coverageRepository,

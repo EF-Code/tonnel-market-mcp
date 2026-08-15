@@ -14,7 +14,6 @@ import { createLogger, type Logger } from "../observability/logger.js";
 import { ExponentialBackoff, sleepWithSignal } from "./backoff.js";
 import { CursorExpiredError, ReplayClient } from "./replay.js";
 import { CoverageRepository } from "../storage/coverage-repository.js";
-import { DatabaseManager } from "../storage/database.js";
 import {
   EventRepository,
   type EventSource,
@@ -35,7 +34,6 @@ type SocketLike = {
 
 export type CollectorOptions = {
   config: Pick<AppConfig, "websocketUrl">;
-  database: DatabaseManager;
   events: EventRepository;
   projections: ProjectionRepository;
   coverage: CoverageRepository;
