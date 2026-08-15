@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/server";
 
 import { MarketAnalytics } from "../../analytics/summaries.js";
 import type { RuntimeServices } from "../../runtime.js";
+import { estimateLagSeconds } from "../../observability/health.js";
 import {
   marketAuctionStatusSchema,
   marketFindOpportunitiesSchema,
@@ -148,13 +149,7 @@ export function registerMarketTools(
       try {
         const state = services.events.getHealthState();
         const coverage = services.coverage.get();
-        const now = Date.now();
-        const lagSeconds = state.lastReceivedAt
-          ? Math.max(
-              0,
-              Math.round((now - Date.parse(state.lastReceivedAt)) / 1_000),
-            )
-          : undefined;
+        const lagSeconds = estimateLagSeconds(state.lastReceivedAt);
         const result = marketResult({
           data: {
             collector: state,
