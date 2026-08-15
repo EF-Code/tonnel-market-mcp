@@ -34,4 +34,8 @@ test("opportunity and alert inputs remain bounded and strategy-specific", () => 
       marketCreateAlertSchema.parse({ name: "x", minPrice: 10, maxPrice: 1 }),
     /cannot exceed/u,
   );
+  assert.throws(
+    () => marketSearchSchema.parse({ minPrice: "not-decimal" }),
+    /valid decimal/u,
+  );
 });
