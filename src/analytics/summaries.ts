@@ -1,7 +1,9 @@
 import {
   compareDecimal,
   decimal,
-  decimalToNumber,
+  divideDecimal,
+  multiplyDecimal,
+  ratioDecimal,
   subtractDecimal,
   type DecimalString,
 } from "../domain/money.js";
@@ -259,12 +261,15 @@ export class MarketAnalytics {
       sort: "price_asc",
       limit: input.limit,
     } as SearchOptions).results;
+    const threshold = decimal(input.thresholdPercent ?? 20);
+    const boundary = divideDecimal(
+      multiplyDecimal(reference, subtractDecimal(100, threshold)),
+      100,
+    );
     return listings
       .filter(
         (listing) =>
-          listing.price &&
-          decimalToNumber(listing.price) <=
-            decimalToNumber(reference) * (1 - thresholdPercent / 100),
+          listing.price && compareDecimal(listing.price, boundary) <= 0,
       )
       .map((listing) => ({
         observedFact: listing,
@@ -306,17 +311,17 @@ export class MarketAnalytics {
       const previous = valueAsDecimal(row.data.previous_price);
       const current = valueAsDecimal(row.data.price);
       if (!previous || !current || compareDecimal(previous, 0) === 0) return [];
-      const drop =
-        ((decimalToNumber(previous) - decimalToNumber(current)) /
-          decimalToNumber(previous)) *
-        100;
-      if (drop < threshold) return [];
+      const drop = ratioDecimal(
+        multiplyDecimal(subtractDecimal(previous, current), 100),
+        previous,
+      );
+      if (compareDecimal(drop, threshold) < 0) return [];
       return [
         {
           observedFact: row,
           reference: { previousPrice: previous, currentPrice: current },
           formula: `(previous_price - price) / previous_price * 100 >= ${threshold}%`,
-          difference: decimal(drop),
+          difference: drop,
           confidence: "medium" as const,
           eventIds: [row.eventId],
           canonicalEventTypes: ["listing.price_changed"],
