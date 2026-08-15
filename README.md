@@ -30,20 +30,42 @@ git clone https://github.com/EF-Code/tonnel-market-mcp.git && \
   node scripts/install.mjs
 ```
 
-Automatic setup checks for the host commands on your `PATH` and configures only the hosts that are actually available: `codex`, `claude`, `openclaw`, or `antigravity`/`gemini`. A leftover configuration file is not treated as proof that the host is installed. To target one host explicitly or preview changes:
+Automatic setup checks for host commands on your `PATH` and configures only the clients that are actually available: Codex, Claude Code, OpenClaw, Antigravity, Gemini CLI, OpenCode, Cursor, Windsurf, VS Code, Pi, Cline, Zed, and Goose. A leftover configuration file is not treated as proof that a client is installed. To target one client explicitly or preview changes:
 
 ```sh
 node scripts/install.mjs --client codex
 node scripts/install.mjs --dry-run
 ```
 
-Use `--client claude`, `--client openclaw`, or `--client antigravity` when a host is installed without its command being on `PATH`. Use `--client all` only when you intentionally want to write configurations for every supported host.
+Use `--client NAME` for any supported client when its command is installed but is not on `PATH`. Use `--client generic` to print a portable stdio configuration without changing a client file. Use `--client all` only when you intentionally want to write configurations for every supported client, including clients that are not installed.
 
 An existing host configuration receives a first-run `.tonnel-market-mcp.bak` backup before it is updated.
 
 Restart the host after setup and ask it to call `market_health`. If no supported host is detected, the installer prints a generic MCP configuration that can be pasted into another MCP client. `npm run setup` provides the same wizard after dependencies are already installed.
 
 The installer uses local stdio by default. Configure the optional HTTP mode only when multiple agents must use one shared collector at the same time; see [docs/operations.md](docs/operations.md).
+
+### Supported clients
+
+The setup command writes each client's native configuration format:
+
+| Client      | Native configuration                             | Note                                                                    |
+| ----------- | ------------------------------------------------ | ----------------------------------------------------------------------- |
+| Codex       | `~/.codex/config.toml`                           | Uses the Codex MCP registration format.                                 |
+| Claude Code | `~/.claude.json`                                 | Adds an `mcpServers.tonnel-market` entry.                               |
+| OpenClaw    | `~/.openclaw/openclaw.json`                      | Uses the OpenClaw MCP command when available.                           |
+| Antigravity | `~/.gemini/config/mcp_config.json`               | Detected as `antigravity` or `agy`.                                     |
+| Gemini CLI  | `~/.gemini/settings.json`                        | Detected separately from Antigravity as `gemini`.                       |
+| OpenCode    | `~/.config/opencode/opencode.json`               | Uses OpenCode's local-server format.                                    |
+| Cursor      | `~/.cursor/mcp.json`                             | Works with the project or global MCP file.                              |
+| Windsurf    | `~/.codeium/windsurf/mcp_config.json`            | Uses the Windsurf MCP file.                                             |
+| VS Code     | `Code/User/mcp.json`                             | Uses `code --add-mcp` when available, then falls back to the user file. |
+| Pi          | `~/.pi/agent/mcp.json`                           | Install `pi-mcp-extension` if Pi does not already have MCP support.     |
+| Cline       | `~/.cline/data/settings/cline_mcp_settings.json` | Writes a stdio MCP entry.                                               |
+| Zed         | `~/.config/zed/settings.json`                    | Adds a `context_servers` entry.                                         |
+| Goose       | `~/.config/goose/config.yaml`                    | Writes a stdio extension.                                               |
+
+Paths follow each client's documented Linux locations; macOS and Windows use their standard application-data directories. If the automatic command check does not find a client, pass its name explicitly. The installer preserves a first-run `.tonnel-market-mcp.bak` backup before editing an existing file.
 
 ## Manual/developer setup
 

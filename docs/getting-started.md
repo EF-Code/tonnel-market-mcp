@@ -26,10 +26,10 @@ The installer:
 - installs the locked dependencies;
 - builds the MCP server;
 - creates and migrates the SQLite database;
-- detects installed host commands for Codex, Claude Code, OpenClaw, and Antigravity; and
+- detects installed client commands for Codex, Claude Code, OpenClaw, Antigravity, Gemini CLI, OpenCode, Cursor, Windsurf, VS Code, Pi, Cline, Zed, and Goose; and
 - writes a local stdio configuration for each detected host.
 
-Automatic detection uses commands on `PATH`, not the presence of an old configuration file. If a host is installed without its command being available, target it explicitly with `--client codex`, `--client claude`, `--client openclaw`, or `--client antigravity`. Use `--client all` only when you intentionally want every supported host configured.
+Automatic detection uses commands on `PATH`, not the presence of an old configuration file. If a client is installed without its command being available, target it explicitly with `--client NAME`. Supported names are `codex`, `claude`, `openclaw`, `antigravity`, `gemini`, `opencode`, `cursor`, `windsurf`, `vscode`, `pi`, `cline`, `zed`, and `goose`. Use `--client generic` to print a portable stdio configuration, or `--client all` only when you intentionally want every supported client configured.
 
 When an existing host configuration is updated, the installer keeps a first-run backup beside it with the suffix `.tonnel-market-mcp.bak`.
 
@@ -63,7 +63,7 @@ If no supported host is detected, copy the generic configuration printed by the 
 
 ## Using several hosts at once
 
-Do not run several stdio collectors against the same database simultaneously. For Codex, Claude Code, OpenClaw, and Antigravity running at the same time, start one shared Streamable HTTP server and point each host at `http://127.0.0.1:8787/mcp`:
+Do not run several stdio collectors against the same database simultaneously. For several clients running at the same time, start one shared Streamable HTTP server and point each client at `http://127.0.0.1:8787/mcp`:
 
 ```sh
 export TONNEL_MARKET_HTTP_TOKEN='use-a-long-random-secret'
