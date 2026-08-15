@@ -1,6 +1,6 @@
 {
   "name": "tonnel-market-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Unofficial read-only MCP server for Tonnel marketplace events.",
   "type": "module",
   "license": "MIT",
