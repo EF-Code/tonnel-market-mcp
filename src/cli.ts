@@ -1,9 +1,24 @@
 import { loadConfig, type McpTransport } from "./config.js";
 import { createRuntime } from "./runtime.js";
+import { printSetupHelp, runDoctor, runSetup } from "./setup.js";
 import { startHttp } from "./transport/http.js";
 import { startStdio } from "./transport/stdio.js";
 
 async function main(): Promise<void> {
+  const command = process.argv[2];
+  if (command === "setup") {
+    await runSetup(process.argv.slice(3));
+    return;
+  }
+  if (command === "doctor") {
+    runDoctor();
+    return;
+  }
+  if (command === "--help" || command === "-h") {
+    printSetupHelp();
+    return;
+  }
+
   const args = new Set(process.argv.slice(2));
   const requestedTransport = getArgumentValue("--transport");
   const env = requestedTransport
