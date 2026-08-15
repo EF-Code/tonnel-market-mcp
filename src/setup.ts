@@ -99,12 +99,7 @@ export function buildSetupPlan(options: SetupPlanOptions = {}): SetupPlan {
   );
   const configPaths = getConfigPaths(setupHome);
   const requestedClient = options.requestedClient ?? "auto";
-  const clients = selectClients(
-    requestedClient,
-    setupHome,
-    configPaths,
-    options.commandAvailability,
-  );
+  const clients = selectClients(requestedClient, options.commandAvailability);
 
   return {
     clients,
@@ -224,7 +219,7 @@ export async function runSetup(args: readonly string[]): Promise<void> {
   for (const client of plan.clients) {
     try {
       configureClient(client, plan);
-      printLine(`Configured ${client}.`);
+      printLine(`Configured ${clientLabel(client)}.`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown error";
       failures.push(`${client}: ${message}`);
@@ -253,7 +248,7 @@ export function runDoctor(): void {
   printLine(`Database: ${plan.databasePath}`);
   printLine(
     plan.clients.length > 0
-      ? `Detected hosts: ${plan.clients.join(", ")}`
+      ? `Detected hosts: ${plan.clients.map(clientLabel).join(", ")}`
       : "Detected hosts: none",
   );
   printLine("Run `tonnel-market-mcp setup` to configure detected hosts.");
@@ -309,8 +304,6 @@ function getConfigPaths(home: string): Record<SetupClient, string> {
 
 function selectClients(
   requestedClient: SetupRequest,
-  home: string,
-  configPaths: Record<SetupClient, string>,
   commandAvailability?: Partial<Record<SetupClient, boolean>>,
 ): SetupClient[] {
   if (requestedClient === "all") return [...SETUP_CLIENTS];
@@ -319,8 +312,17 @@ function selectClients(
   return SETUP_CLIENTS.filter((client) => {
     const explicitlyAvailable = commandAvailability?.[client];
     if (explicitlyAvailable !== undefined) return explicitlyAvailable;
-    return clientCommandAvailable(client) || existsSync(configPaths[client]);
+    return clientCommandAvailable(client);
   });
+}
+
+function clientLabel(client: SetupClient): string {
+  return {
+    codex: "Codex",
+    claude: "Claude Code",
+    openclaw: "OpenClaw",
+    antigravity: "Antigravity",
+  }[client];
 }
 
 function clientCommandAvailable(client: SetupClient): boolean {
@@ -515,8 +517,8 @@ function printSetupHeader(plan: SetupPlan, dryRun: boolean): void {
   printLine(`Database: ${plan.databasePath}`);
   printLine(
     plan.clients.length > 0
-      ? `Hosts: ${plan.clients.join(", ")}`
-      : "Hosts: none detected",
+      ? `Hosts: ${plan.clients.map(clientLabel).join(", ")}`
+      : "Hosts: none detected by command lookup",
   );
   printLine("");
 }

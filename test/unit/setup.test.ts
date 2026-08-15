@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import test from "node:test";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import {
   buildSetupPlan,
@@ -50,6 +53,31 @@ test("setup option parsing supports noob-friendly defaults and previews", () => 
     dryRun: false,
     help: true,
   });
+});
+
+test("auto detection ignores stale config files without host commands", () => {
+  const home = mkdtempSync(join(tmpdir(), "tonnel-setup-home-"));
+  try {
+    writeFileSync(join(home, ".claude.json"), "{}\n");
+    const plan = buildSetupPlan({
+      requestedClient: "auto",
+      home,
+      platform: "linux",
+      env: {},
+      entrypoint: "/opt/tonnel/dist/src/cli.js",
+      projectRoot: "/opt/tonnel",
+      commandAvailability: {
+        codex: false,
+        claude: false,
+        openclaw: false,
+        antigravity: false,
+      },
+    });
+
+    assert.deepEqual(plan.clients, []);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
 });
 
 test("host configuration renders the same stdio server contract", () => {
