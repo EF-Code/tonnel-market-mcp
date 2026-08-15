@@ -169,3 +169,127 @@ test("collector buffers live events until replay recovery and then commits both 
   assert.equal(events.getHealthState().websocketState, "stopped");
   database.close();
 });
+
+test("expired replay cursors record a coverage gap before restarting from the retention window", async () => {
+  const database = new DatabaseManager(":memory:", { inMemory: true });
+  database.migrate();
+  const events = new EventRepository(database);
+  const projections = new ProjectionRepository();
+  const coverage = new CoverageRepository(database.db);
+  const socket = new FakeSocket();
+  const checkpointEvent = fixtureEvent("listing.created", 20);
+  const recoveredEvent = fixtureEvent("listing.price_changed", 21);
+  events.initializeCollector("2026-08-15T00:00:00.000Z");
+  events.processEvent(
+    checkpointEvent,
+    {
+      source: "replay",
+      receivedAt: "2026-08-15T02:00:00.000Z",
+      receiveSequence: 1,
+      correlationId: "checkpoint",
+    },
+    (db) => projections.apply(db, checkpointEvent),
+  );
+  let requestCount = 0;
+  const replay = new ReplayClient({
+    endpoint: "https://example.test/api/marketplace/events",
+    fetch: async (input) => {
+      requestCount += 1;
+      const url = new URL(input);
+      if (url.searchParams.has("after")) {
+        return new Response("Invalid or expired after cursor", { status: 400 });
+      }
+      return new Response(
+        JSON.stringify({
+          status: "success",
+          events: [recoveredEvent],
+          nextAfter: null,
+        }),
+        { status: 200 },
+      );
+    },
+  });
+  const collector = new MarketplaceCollector({
+    config: { websocketUrl: "wss://example.test/ws" },
+    database,
+    events,
+    projections,
+    coverage,
+    replay,
+    logger: silentLogger,
+    now: () => "2026-08-15T03:00:00.000Z",
+    websocketFactory: () => socket,
+    sleep: async () => undefined,
+  });
+  const abort = new AbortController();
+  const running = collector.run(abort.signal);
+  socket.emitOpen();
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  abort.abort();
+  await running;
+
+  assert.equal(requestCount, 2);
+  assert.equal(events.getHealthState().cursorExpiryCount, 1);
+  assert.equal(events.getHealthState().replayState, "completed");
+  assert.equal(coverage.gaps().length, 1);
+  assert.match(coverage.gaps()[0]?.reason ?? "", /cursor expired/u);
+  database.close();
+});
+
+test("collector reconnects after the upstream 1013 slow-client close", async () => {
+  const database = new DatabaseManager(":memory:", { inMemory: true });
+  database.migrate();
+  const events = new EventRepository(database);
+  const projections = new ProjectionRepository();
+  const coverage = new CoverageRepository(database.db);
+  const sockets: FakeSocket[] = [];
+  const replay = new ReplayClient({
+    endpoint: "https://example.test/api/marketplace/events",
+    fetch: async () =>
+      new Response(
+        JSON.stringify({ status: "success", events: [], nextAfter: null }),
+        {
+          status: 200,
+        },
+      ),
+  });
+  const collector = new MarketplaceCollector({
+    config: { websocketUrl: "wss://example.test/ws" },
+    database,
+    events,
+    projections,
+    coverage,
+    replay,
+    logger: silentLogger,
+    now: () => "2026-08-15T04:00:00.000Z",
+    websocketFactory: () => {
+      const socket = new FakeSocket();
+      sockets.push(socket);
+      return socket;
+    },
+    sleep: async () => undefined,
+  });
+  const abort = new AbortController();
+  const running = collector.run(abort.signal);
+  await waitFor(() => sockets.length === 1);
+  sockets[0]?.emitOpen();
+  await waitFor(() => Boolean(events.getHealthState().lastReplayCompletedAt));
+  sockets[0]?.close(1013, "slow consumer");
+  await waitFor(() => sockets.length === 2);
+  sockets[1]?.emitOpen();
+  await waitFor(() => events.getHealthState().websocketState === "connected");
+  abort.abort();
+  await running;
+
+  assert.equal(sockets.length, 2);
+  assert.equal(events.getHealthState().websocketState, "stopped");
+  database.close();
+});
+
+async function waitFor(condition: () => boolean): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (condition()) return;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.fail("condition was not reached before timeout");
+}
