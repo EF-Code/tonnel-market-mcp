@@ -37,10 +37,15 @@ const pack = Array.isArray(packResult)
 const files = new Set(pack?.files?.map((file) => file.path) ?? []);
 const missing = expected.filter((file) => !files.has(file));
 const leaked = forbidden.filter((file) => files.has(file));
+const bundledTests = [...files].filter((file) => file.startsWith("dist/test/"));
 if (missing.length > 0)
   throw new Error(`Package is missing: ${missing.join(", ")}`);
 if (leaked.length > 0)
   throw new Error(`Package includes local-only files: ${leaked.join(", ")}`);
+if (bundledTests.length > 0)
+  throw new Error(
+    `Package includes test artifacts: ${bundledTests.join(", ")}`,
+  );
 
 console.log(`release preflight: ${files.size} package files inspected`);
 console.log("release preflight: local-only prompt and contract files excluded");
