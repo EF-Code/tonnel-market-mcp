@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { loadConfig, type McpTransport } from "./config.js";
 import { createRuntime } from "./runtime.js";
 import { printSetupHelp, runDoctor, runSetup } from "./setup.js";

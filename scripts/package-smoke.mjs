@@ -41,6 +41,18 @@ try {
     stdio: "inherit",
   });
 
+  const installedBin = join(
+    installDir,
+    "node_modules",
+    ".bin",
+    "tonnel-market-mcp",
+  );
+  execFileSync(installedBin, ["--help"], {
+    cwd: installDir,
+    env: npmEnv,
+    stdio: "inherit",
+  });
+
   const cli = join(
     installDir,
     "node_modules",
