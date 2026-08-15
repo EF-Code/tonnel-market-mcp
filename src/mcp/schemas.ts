@@ -1,6 +1,7 @@
 import * as z from "zod/v4";
 
 import { EVENT_TYPES } from "../domain/events.js";
+import { compareDecimal, decimal } from "../domain/money.js";
 
 const isoUtc = z
   .string()
@@ -17,10 +18,24 @@ const eventTypes = z
   .max(EVENT_TYPES.length)
   .optional();
 const traitString = z.string().min(1).max(256).optional();
-const monetaryInput = z.union([
-  z.number().finite().nonnegative(),
-  z.string().min(1).max(64),
-]);
+const monetaryInput = z
+  .union([z.number().finite().nonnegative(), z.string().min(1).max(64)])
+  .superRefine((value, context) => {
+    try {
+      if (compareDecimal(value, 0) < 0) {
+        context.addIssue({
+          code: "custom",
+          message: "Monetary values cannot be negative.",
+        });
+      }
+      decimal(value);
+    } catch {
+      context.addIssue({
+        code: "custom",
+        message: "Monetary values must be valid decimal numbers.",
+      });
+    }
+  });
 
 export const marketSearchSchema = z
   .object({
@@ -44,7 +59,10 @@ export const marketSearchSchema = z
     limit: boundedLimit,
     cursor: z.string().min(1).max(512).optional(),
   })
-  .superRefine(validateWindow);
+  .superRefine((value, context) => {
+    validateWindow(value, context);
+    validatePriceBounds(value, context);
+  });
 
 export const marketGiftHistorySchema = z
   .object({
@@ -134,31 +152,33 @@ export const marketFindOpportunitiesSchema = z
 
 export const marketHealthSchema = z.object({});
 
-export const marketCreateAlertSchema = z.object({
-  name: z.string().min(1).max(100),
-  enabled: z.boolean().optional(),
-  eventTypes,
-  giftId: z.number().int().positive().optional(),
-  giftName: traitString,
-  model: traitString,
-  backdrop: traitString,
-  symbol: traitString,
-  asset: traitString,
-  saleType: z.enum(["FIXED", "DUTCH"]).optional(),
-  source: z.enum(["LISTING", "DUTCH", "BUY_OFFER", "AUCTION"]).optional(),
-  minPrice: monetaryInput.optional(),
-  maxPrice: monetaryInput.optional(),
-  auctionEndsWithinMinutes: z.number().int().min(0).max(10_080).optional(),
-  strategy: z
-    .enum([
-      "below_recent_median",
-      "price_drop",
-      "auction_ending",
-      "offer_activity",
-      "premarket_spread",
-    ])
-    .optional(),
-});
+export const marketCreateAlertSchema = z
+  .object({
+    name: z.string().min(1).max(100),
+    enabled: z.boolean().optional(),
+    eventTypes,
+    giftId: z.number().int().positive().optional(),
+    giftName: traitString,
+    model: traitString,
+    backdrop: traitString,
+    symbol: traitString,
+    asset: traitString,
+    saleType: z.enum(["FIXED", "DUTCH"]).optional(),
+    source: z.enum(["LISTING", "DUTCH", "BUY_OFFER", "AUCTION"]).optional(),
+    minPrice: monetaryInput.optional(),
+    maxPrice: monetaryInput.optional(),
+    auctionEndsWithinMinutes: z.number().int().min(0).max(10_080).optional(),
+    strategy: z
+      .enum([
+        "below_recent_median",
+        "price_drop",
+        "auction_ending",
+        "offer_activity",
+        "premarket_spread",
+      ])
+      .optional(),
+  })
+  .superRefine(validatePriceBounds);
 
 export const marketListAlertsSchema = z.object({
   includeHits: z.boolean().default(false),
@@ -202,5 +222,29 @@ function validateWindow(
       path: [fromKey],
       message: `${fromKey} must be before ${toKey}.`,
     });
+  }
+}
+
+function validatePriceBounds(value: unknown, context: z.RefinementCtx): void {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return;
+  const record = value as Record<string, unknown>;
+  const minPrice = record.minPrice;
+  const maxPrice = record.maxPrice;
+  if (
+    (typeof minPrice !== "string" && typeof minPrice !== "number") ||
+    (typeof maxPrice !== "string" && typeof maxPrice !== "number")
+  )
+    return;
+  try {
+    if (compareDecimal(minPrice, maxPrice) > 0) {
+      context.addIssue({
+        code: "custom",
+        path: ["minPrice"],
+        message: "minPrice cannot exceed maxPrice.",
+      });
+    }
+  } catch {
+    // The monetary field refinement reports the stable parse error.
   }
 }
