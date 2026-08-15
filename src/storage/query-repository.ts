@@ -3,6 +3,7 @@ import {
   decimal,
   type DecimalString,
 } from "../domain/money.js";
+import { AppError } from "../domain/errors.js";
 import type { PublicGift } from "../domain/events.js";
 import type { SqliteDatabase } from "./database.js";
 
@@ -663,9 +664,12 @@ function decodeCursor(cursor: string | undefined): Cursor | undefined {
       };
     }
   } catch {
-    // Fall through to a stable validation error in callers when needed.
+    // Fall through to the stable validation error below.
   }
-  return undefined;
+  throw new AppError(
+    "INVALID_ARGUMENT",
+    "The pagination cursor is invalid or malformed.",
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
