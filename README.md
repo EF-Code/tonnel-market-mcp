@@ -12,6 +12,16 @@ It does not represent or speak for Tonnel, Telegram, TON, or any marketplace. It
 
 ## Easiest setup for new users
 
+After the npm release, the simplest installation is:
+
+```sh
+npx -y tonnel-market-mcp setup
+```
+
+The package requires Node.js 22 or newer. No repository checkout is needed.
+
+For source installation or unreleased changes, use the checkout installer:
+
 From a fresh checkout, one command installs dependencies, builds the server, creates the local database, detects supported MCP hosts, and writes their local stdio configuration:
 
 ```sh

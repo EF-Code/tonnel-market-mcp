@@ -2,15 +2,23 @@
 
 The easiest path is to let the installer configure the MCP host for you.
 
-## One-command setup from GitHub
+## One-command setup from npm
+
+After the package is published, run:
+
+```sh
+npx -y tonnel-market-mcp setup
+```
+
+The command downloads the package, builds no local source checkout, detects supported MCP hosts, and writes their local stdio configuration. Node.js 22 or newer is required.
+
+## Source installation from GitHub
 
 ```sh
 git clone https://github.com/EF-Code/tonnel-market-mcp.git
 cd tonnel-market-mcp
 node scripts/install.mjs
 ```
-
-The repository is currently source-installed rather than published to npm. If it is published later, the same wizard can be exposed as `npx -y tonnel-market-mcp setup`.
 
 The installer:
 
