@@ -11,7 +11,8 @@
     "tonnel-market-mcp": "dist/src/cli.js"
   },
   "files": [
-    "dist",
+    "dist/src",
+    "dist/scripts/live-smoke.js",
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
@@ -34,6 +35,7 @@
     "test:protocol": "npm run build && node --test dist/test/protocol/*.test.js",
     "test:live": "npm run build && node dist/scripts/live-smoke.js",
     "release:preflight": "npm run build && node scripts/release-preflight.mjs",
+    "package:smoke": "node scripts/package-smoke.mjs",
     "verify": "npm run format && npm run lint && npm run typecheck && npm test && npm run test:integration && npm run test:security && npm run test:protocol && npm run build"
   },
   "dependencies": {
