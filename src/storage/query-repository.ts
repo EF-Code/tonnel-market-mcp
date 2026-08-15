@@ -204,12 +204,16 @@ export class QueryRepository {
       });
     }
     const hasMoreRaw = rows.length === scanLimit;
-    results = results.slice(0, options.limit);
-    const lastRaw = rows.at(-1);
+    const page = results.slice(0, options.limit);
+    const lastPageResult = page.at(-1);
+    const lastPageRaw = lastPageResult
+      ? rows.find((row) => row.event_id === lastPageResult.eventId)
+      : undefined;
+    const lastRaw = lastPageRaw ?? rows.at(-1);
     return {
-      results,
+      results: page,
       nextCursor:
-        hasMoreRaw && lastRaw
+        (hasMoreRaw || results.length > options.limit) && lastRaw
           ? encodeCursor({
               occurredAt: lastRaw.occurred_at,
               receiveSequence: lastRaw.receive_sequence,
@@ -264,13 +268,17 @@ export class QueryRepository {
         if (options.eventTypes && !options.eventTypes.includes(row.type))
           return false;
         return containsGift(row.data, options.giftId);
-      })
-      .slice(0, options.limit);
-    const lastRaw = rows.at(-1);
+      });
+    const page = results.slice(0, options.limit);
+    const lastPageResult = page.at(-1);
+    const lastPageRaw = lastPageResult
+      ? rows.find((row) => row.event_id === lastPageResult.eventId)
+      : undefined;
+    const lastRaw = lastPageRaw ?? rows.at(-1);
     return {
-      results,
+      results: page,
       nextCursor:
-        rows.length === scanLimit && lastRaw
+        (rows.length === scanLimit || results.length > options.limit) && lastRaw
           ? encodeCursor({
               occurredAt: lastRaw.occurred_at,
               receiveSequence: lastRaw.receive_sequence,
