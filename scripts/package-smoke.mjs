@@ -6,16 +6,18 @@ import { tmpdir } from "node:os";
 const root = process.cwd();
 const workspace = mkdtempSync(join(tmpdir(), "tonnel-market-package-"));
 const installDir = join(workspace, "install");
+const npmEnv = { ...process.env, npm_config_dry_run: "false" };
 
 try {
   execFileSync("npm", ["run", "build"], {
     cwd: root,
+    env: npmEnv,
     stdio: "inherit",
   });
   execFileSync(
     "npm",
     ["pack", "--ignore-scripts", "--pack-destination", workspace],
-    { cwd: root, stdio: "inherit" },
+    { cwd: root, env: npmEnv, stdio: "inherit" },
   );
   const tarball = readdirSync(workspace).find((file) => file.endsWith(".tgz"));
   if (!tarball) throw new Error("npm pack did not create a tarball");
@@ -31,10 +33,11 @@ try {
       installDir,
       join(workspace, tarball),
     ],
-    { cwd: root, stdio: "inherit" },
+    { cwd: root, env: npmEnv, stdio: "inherit" },
   );
   execFileSync("npm", ["rebuild", "--prefix", installDir, "better-sqlite3"], {
     cwd: root,
+    env: npmEnv,
     stdio: "inherit",
   });
 
