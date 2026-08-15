@@ -138,10 +138,11 @@ Useful questions include:
 ```sh
 npm run verify
 npm run release:preflight
+npm run package:smoke
 npm run test:live
 ```
 
-`npm run verify` is deterministic and does not contact Tonnel. `npm run test:live` is optional, read-only, and tolerated when the upstream is unavailable; it is not part of CI. The protocol suite uses the official MCP TypeScript client over an in-memory transport and the real stdio child process. It verifies tool/resource/prompt discovery, a tool call, a resource read, prompt retrieval, and stdout protocol integrity.
+`npm run verify` is deterministic and does not contact Tonnel. `npm run package:smoke` installs the generated tarball in a fresh temporary prefix, rebuilds the native SQLite dependency, and runs the migration entrypoint. `npm run test:live` is optional, read-only, and tolerated when the upstream is unavailable; it is not part of CI. The protocol suite uses the official MCP TypeScript client over an in-memory transport and the real stdio child process. It verifies tool/resource/prompt discovery, a tool call, a resource read, prompt retrieval, and stdout protocol integrity.
 
 ## Troubleshooting
 
