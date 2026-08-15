@@ -8,7 +8,7 @@
     "node": ">=22"
   },
   "bin": {
-    "tonnel-market-mcp": "dist/cli.js"
+    "tonnel-market-mcp": "dist/src/cli.js"
   },
   "files": [
     "dist",
@@ -18,12 +18,12 @@
     "docs"
   ],
   "scripts": {
-    "dev": "npm run build && node --watch dist/cli.js --transport stdio",
+    "dev": "npm run build && node --watch dist/src/cli.js --transport stdio",
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/cli.js",
-    "start:stdio": "node dist/cli.js --transport stdio",
-    "start:http": "node dist/cli.js --transport http",
-    "migrate": "npm run build && node dist/cli.js --migrate-only",
+    "start": "node dist/src/cli.js",
+    "start:stdio": "node dist/src/cli.js --transport stdio",
+    "start:http": "node dist/src/cli.js --transport http",
+    "migrate": "npm run build && node dist/src/cli.js --migrate-only",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "node scripts/lint.mjs",
     "format": "prettier --check .",
