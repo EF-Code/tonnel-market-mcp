@@ -26,8 +26,10 @@ The installer:
 - installs the locked dependencies;
 - builds the MCP server;
 - creates and migrates the SQLite database;
-- detects Codex, Claude Code, OpenClaw, and Antigravity; and
+- detects installed host commands for Codex, Claude Code, OpenClaw, and Antigravity; and
 - writes a local stdio configuration for each detected host.
+
+Automatic detection uses commands on `PATH`, not the presence of an old configuration file. If a host is installed without its command being available, target it explicitly with `--client codex`, `--client claude`, `--client openclaw`, or `--client antigravity`. Use `--client all` only when you intentionally want every supported host configured.
 
 When an existing host configuration is updated, the installer keeps a first-run backup beside it with the suffix `.tonnel-market-mcp.bak`.
 

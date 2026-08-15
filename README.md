@@ -30,12 +30,14 @@ git clone https://github.com/EF-Code/tonnel-market-mcp.git && \
   node scripts/install.mjs
 ```
 
-The installer detects Codex, Claude Code, OpenClaw, and Antigravity. It configures every detected host using the same local server process definition. To target one host or preview changes:
+Automatic setup checks for the host commands on your `PATH` and configures only the hosts that are actually available: `codex`, `claude`, `openclaw`, or `antigravity`/`gemini`. A leftover configuration file is not treated as proof that the host is installed. To target one host explicitly or preview changes:
 
 ```sh
 node scripts/install.mjs --client codex
 node scripts/install.mjs --dry-run
 ```
+
+Use `--client claude`, `--client openclaw`, or `--client antigravity` when a host is installed without its command being on `PATH`. Use `--client all` only when you intentionally want to write configurations for every supported host.
 
 An existing host configuration receives a first-run `.tonnel-market-mcp.bak` backup before it is updated.
 
