@@ -5,7 +5,9 @@ import {
   addDecimal,
   averageDecimal,
   compareDecimal,
+  multiplyDecimal,
   percentDifference,
+  ratioDecimal,
   subtractDecimal,
 } from "../../src/domain/money.js";
 import { median, percentile } from "../../src/analytics/statistics.js";
@@ -13,6 +15,8 @@ import { median, percentile } from "../../src/analytics/statistics.js";
 test("decimal operations remain deterministic for large and fractional values", () => {
   assert.equal(addDecimal("9007199254740992.25", "0.75"), "9007199254740993");
   assert.equal(subtractDecimal("10.00", "0.125"), "9.875");
+  assert.equal(multiplyDecimal("1.25", "8"), "10");
+  assert.equal(ratioDecimal("2", "8"), "0.25");
   assert.equal(averageDecimal(["1", "2", "4"]), "2.33333333");
   assert.equal(percentDifference("8", "10"), "-0.2");
   assert.equal(compareDecimal("1.000", "1"), 0);
