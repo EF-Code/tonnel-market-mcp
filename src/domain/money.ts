@@ -150,14 +150,30 @@ export function averageDecimal(values: Array<string | number>): DecimalString {
       "INSUFFICIENT_HISTORY",
       "Cannot average an empty sample.",
     );
-  const total = addDecimal(...values);
-  const parts = partsFromValue(total);
-  return formatParts(
-    normalizeParts({
-      coefficient: parts.coefficient / BigInt(values.length),
-      scale: parts.scale,
-    }),
-  );
+  return divideDecimal(addDecimal(...values), values.length);
+}
+
+export function divideDecimal(
+  value: string | number,
+  divisor: number,
+  precision = 8,
+): DecimalString {
+  if (!Number.isInteger(divisor) || divisor === 0) {
+    throw new AppError(
+      "INVALID_ARGUMENT",
+      "Decimal divisor must be a non-zero integer.",
+    );
+  }
+  if (!Number.isInteger(precision) || precision < 0 || precision > 100) {
+    throw new AppError(
+      "INVALID_ARGUMENT",
+      "Decimal precision is outside the supported range.",
+    );
+  }
+  const parts = partsFromValue(value);
+  const coefficient =
+    (parts.coefficient * 10n ** BigInt(precision)) / BigInt(divisor);
+  return formatParts({ coefficient, scale: parts.scale + precision });
 }
 
 export function decimalToNumber(value: string | number): number {
