@@ -4,11 +4,36 @@
 
 It does not represent or speak for Tonnel, Telegram, TON, or any marketplace. It does not connect wallets, sign messages, list, buy, bid, sell, transfer, settle, or authorize transactions. The upstream feed contains public gift and marketplace events, not Telegram or wallet identity. This project never infers sellers, buyers, bidders, makers, takers, or owners.
 
-## Requirements and installation
+## Requirements
 
 - Node.js 22 or newer.
 - A working native build toolchain for `better-sqlite3` when a prebuilt binary is unavailable.
 - Network access to the public upstream API only when the collector is running.
+
+## Easiest setup for new users
+
+From a fresh checkout, one command installs dependencies, builds the server, creates the local database, detects supported MCP hosts, and writes their local stdio configuration:
+
+```sh
+git clone https://github.com/EF-Code/tonnel-market-mcp.git && \
+  cd tonnel-market-mcp && \
+  node scripts/install.mjs
+```
+
+The installer detects Codex, Claude Code, OpenClaw, and Antigravity. It configures every detected host using the same local server process definition. To target one host or preview changes:
+
+```sh
+node scripts/install.mjs --client codex
+node scripts/install.mjs --dry-run
+```
+
+An existing host configuration receives a first-run `.tonnel-market-mcp.bak` backup before it is updated.
+
+Restart the host after setup and ask it to call `market_health`. If no supported host is detected, the installer prints a generic MCP configuration that can be pasted into another MCP client. `npm run setup` provides the same wizard after dependencies are already installed.
+
+The installer uses local stdio by default. Configure the optional HTTP mode only when multiple agents must use one shared collector at the same time; see [docs/operations.md](docs/operations.md).
+
+## Manual/developer setup
 
 ```sh
 git clone https://github.com/EF-Code/tonnel-market-mcp.git
