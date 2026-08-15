@@ -64,6 +64,7 @@
     "@modelcontextprotocol/node": "2.0.0",
     "@modelcontextprotocol/server": "2.0.0",
     "better-sqlite3": "13.0.3",
+    "yaml": "2.9.0",
     "ws": "8.21.3",
     "zod": "4.4.3"
   },
