@@ -3,7 +3,25 @@
   "version": "0.1.0",
   "description": "Unofficial read-only MCP server for Tonnel marketplace events.",
   "type": "module",
-  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EF-Code/tonnel-market-mcp.git"
+  },
+  "homepage": "https://github.com/EF-Code/tonnel-market-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/EF-Code/tonnel-market-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "tonnel",
+    "marketplace",
+    "telegram-gifts"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=22"
   },
@@ -27,6 +45,7 @@
     "setup": "npm run build && node dist/src/cli.js setup",
     "doctor": "npm run build && node dist/src/cli.js doctor",
     "install:guided": "node scripts/install.mjs",
+    "prepublishOnly": "npm run verify && npm run release:preflight && npm run package:smoke",
     "migrate": "npm run build && node dist/src/cli.js --migrate-only",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "node scripts/lint.mjs",
