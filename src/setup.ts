@@ -12,6 +12,7 @@ import {
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseDocument, stringify } from "yaml";
 
 import { loadConfig } from "./config.js";
 import { createRuntime } from "./runtime.js";
@@ -21,11 +22,20 @@ export const SETUP_CLIENTS = [
   "claude",
   "openclaw",
   "antigravity",
+  "gemini",
+  "opencode",
+  "cursor",
+  "windsurf",
+  "vscode",
+  "pi",
+  "cline",
+  "zed",
+  "goose",
 ] as const;
 
 export type SetupClient = (typeof SETUP_CLIENTS)[number];
 
-type SetupRequest = "auto" | "all" | SetupClient;
+type SetupRequest = "auto" | "all" | "generic" | SetupClient;
 
 export type SetupServerConfig = {
   command: string;
@@ -97,7 +107,7 @@ export function buildSetupPlan(options: SetupPlanOptions = {}): SetupPlan {
     options.databasePath ??
       defaultDatabasePath(setupHome, options.platform, env),
   );
-  const configPaths = getConfigPaths(setupHome);
+  const configPaths = getConfigPaths(setupHome, options.platform, env);
   const requestedClient = options.requestedClient ?? "auto";
   const clients = selectClients(requestedClient, options.commandAvailability);
 
@@ -149,6 +159,69 @@ export function renderAntigravityConfig(server: SetupServerConfig): JsonObject {
     args: server.args,
     cwd: server.cwd,
     env: server.env,
+  };
+}
+
+export function renderStandardStdioConfig(
+  server: SetupServerConfig,
+): JsonObject {
+  return {
+    command: server.command,
+    args: server.args,
+    env: server.env,
+  };
+}
+
+export function renderOpenCodeConfig(server: SetupServerConfig): JsonObject {
+  return {
+    type: "local",
+    command: [server.command, ...server.args],
+    cwd: server.cwd,
+    environment: server.env,
+  };
+}
+
+export function renderVsCodeConfig(server: SetupServerConfig): JsonObject {
+  return {
+    type: "stdio",
+    command: server.command,
+    args: server.args,
+    env: server.env,
+  };
+}
+
+export function renderPiConfig(server: SetupServerConfig): JsonObject {
+  return {
+    command: server.command,
+    args: server.args,
+    transport: "stdio",
+    lifecycle: "lazy",
+    env: server.env,
+  };
+}
+
+export function renderClineConfig(server: SetupServerConfig): JsonObject {
+  return {
+    command: server.command,
+    args: server.args,
+    env: server.env,
+    transportType: "stdio",
+  };
+}
+
+export function renderZedConfig(server: SetupServerConfig): JsonObject {
+  return renderStandardStdioConfig(server);
+}
+
+export function renderGooseConfig(server: SetupServerConfig): JsonObject {
+  return {
+    name: SERVER_NAME,
+    type: "stdio",
+    enabled: true,
+    cmd: server.command,
+    args: server.args,
+    envs: server.env,
+    timeout: 300,
   };
 }
 
@@ -220,6 +293,7 @@ export async function runSetup(args: readonly string[]): Promise<void> {
     try {
       configureClient(client, plan);
       printLine(`Configured ${clientLabel(client)}.`);
+      printClientNote(client);
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown error";
       failures.push(`${client}: ${message}`);
@@ -261,7 +335,10 @@ export function printSetupHelp(): void {
   printLine("");
   printLine("Options:");
   printLine(
-    "  --client auto|all|codex|claude|openclaw|antigravity  Host to configure",
+    "  --client VALUE                                      Host to configure",
+  );
+  printLine(
+    `                                                     auto, all, generic, or: ${SETUP_CLIENTS.join(", ")}`,
   );
   printLine(
     "  --db-path PATH                                      SQLite path",
@@ -293,12 +370,45 @@ function defaultDatabasePath(
   return join(dataRoot, "tonnel-market-mcp", "tonnel-market.sqlite");
 }
 
-function getConfigPaths(home: string): Record<SetupClient, string> {
+function getConfigPaths(
+  home: string,
+  platform: NodeJS.Platform = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
+): Record<SetupClient, string> {
+  const configRoot =
+    platform === "win32"
+      ? env.APPDATA?.trim() || join(home, "AppData", "Roaming")
+      : env.XDG_CONFIG_HOME?.trim() || join(home, ".config");
+  const vscodeConfigRoot =
+    platform === "darwin"
+      ? join(home, "Library", "Application Support")
+      : configRoot;
+  const gooseConfigRoot =
+    platform === "win32"
+      ? join(
+          env.APPDATA?.trim() || join(home, "AppData", "Roaming"),
+          "Block",
+          "goose",
+          "config",
+        )
+      : join(configRoot, "goose");
+  const clineDataRoot =
+    env.CLINE_DATA_DIR?.trim() || join(home, ".cline", "data");
+
   return {
     codex: join(home, ".codex", "config.toml"),
     claude: join(home, ".claude.json"),
     openclaw: join(home, ".openclaw", "openclaw.json"),
     antigravity: join(home, ".gemini", "config", "mcp_config.json"),
+    gemini: join(home, ".gemini", "settings.json"),
+    opencode: join(configRoot, "opencode", "opencode.json"),
+    cursor: join(home, ".cursor", "mcp.json"),
+    windsurf: join(home, ".codeium", "windsurf", "mcp_config.json"),
+    vscode: join(vscodeConfigRoot, "Code", "User", "mcp.json"),
+    pi: join(home, ".pi", "agent", "mcp.json"),
+    cline: join(clineDataRoot, "settings", "cline_mcp_settings.json"),
+    zed: join(configRoot, "zed", "settings.json"),
+    goose: join(gooseConfigRoot, "config.yaml"),
   };
 }
 
@@ -307,6 +417,7 @@ function selectClients(
   commandAvailability?: Partial<Record<SetupClient, boolean>>,
 ): SetupClient[] {
   if (requestedClient === "all") return [...SETUP_CLIENTS];
+  if (requestedClient === "generic") return [];
   if (requestedClient !== "auto") return [requestedClient];
 
   return SETUP_CLIENTS.filter((client) => {
@@ -322,17 +433,42 @@ function clientLabel(client: SetupClient): string {
     claude: "Claude Code",
     openclaw: "OpenClaw",
     antigravity: "Antigravity",
+    gemini: "Gemini CLI",
+    opencode: "OpenCode",
+    cursor: "Cursor",
+    windsurf: "Windsurf",
+    vscode: "VS Code",
+    pi: "Pi",
+    cline: "Cline",
+    zed: "Zed",
+    goose: "Goose",
   }[client];
 }
 
 function clientCommandAvailable(client: SetupClient): boolean {
-  const commands: Record<SetupClient, string[]> = {
+  return findExecutableOnPath(clientCommands(client)) !== undefined;
+}
+
+function clientCommands(client: SetupClient): string[] {
+  return {
     codex: ["codex"],
     claude: ["claude"],
     openclaw: ["openclaw"],
-    antigravity: ["antigravity", "gemini"],
-  };
-  return commands[client].some((command) => executableOnPath(command));
+    antigravity: ["antigravity", "agy"],
+    gemini: ["gemini"],
+    opencode: ["opencode"],
+    cursor: ["cursor", "cursor-agent"],
+    windsurf: ["windsurf"],
+    vscode: ["code", "code-insiders"],
+    pi: ["pi"],
+    cline: ["cline"],
+    zed: ["zed"],
+    goose: ["goose"],
+  }[client];
+}
+
+function findExecutableOnPath(commands: readonly string[]): string | undefined {
+  return commands.find((command) => executableOnPath(command));
 }
 
 function executableOnPath(command: string): boolean {
@@ -372,7 +508,84 @@ function configureClient(client: SetupClient, plan: SetupPlan): void {
         renderAntigravityConfig(plan.server),
       );
       return;
+    case "gemini":
+      updateJsonConfig(
+        plan.configPaths.gemini,
+        ["mcpServers", SERVER_NAME],
+        renderStandardStdioConfig(plan.server),
+      );
+      return;
+    case "opencode":
+      updateJsonConfig(
+        plan.configPaths.opencode,
+        ["mcp", "servers", SERVER_NAME],
+        renderOpenCodeConfig(plan.server),
+      );
+      return;
+    case "cursor":
+    case "windsurf":
+    case "pi":
+      updateJsonConfig(
+        plan.configPaths[client],
+        ["mcpServers", SERVER_NAME],
+        client === "pi"
+          ? renderPiConfig(plan.server)
+          : renderStandardStdioConfig(plan.server),
+      );
+      return;
+    case "vscode":
+      configureVsCode(plan);
+      return;
+    case "cline":
+      updateJsonConfig(
+        plan.configPaths.cline,
+        ["mcpServers", SERVER_NAME],
+        renderClineConfig(plan.server),
+      );
+      return;
+    case "zed":
+      updateJsonConfig(
+        plan.configPaths.zed,
+        ["context_servers", SERVER_NAME],
+        renderZedConfig(plan.server),
+      );
+      return;
+    case "goose":
+      updateYamlConfig(
+        plan.configPaths.goose,
+        ["extensions", SERVER_NAME],
+        renderGooseConfig(plan.server),
+      );
+      return;
   }
+}
+
+function configureVsCode(plan: SetupPlan): void {
+  const command = findExecutableOnPath(clientCommands("vscode"));
+  if (command) {
+    try {
+      backupConfigOnce(plan.configPaths.vscode);
+      execFileSync(
+        command,
+        [
+          "--add-mcp",
+          JSON.stringify({
+            name: SERVER_NAME,
+            ...renderVsCodeConfig(plan.server),
+          }),
+        ],
+        { stdio: "ignore" },
+      );
+      return;
+    } catch {
+      // Fall back to the documented user mcp.json location below.
+    }
+  }
+  updateJsonConfig(
+    plan.configPaths.vscode,
+    ["servers", SERVER_NAME],
+    renderVsCodeConfig(plan.server),
+  );
 }
 
 function configureOpenClaw(plan: SetupPlan): void {
@@ -465,6 +678,22 @@ function updateJsonConfig(
   writeTextFile(path, `${JSON.stringify(root, null, 2)}\n`);
 }
 
+function updateYamlConfig(
+  path: string,
+  segments: string[],
+  value: JsonObject,
+): void {
+  const source = existsSync(path) ? readFileSync(path, "utf8") : "";
+  const document = parseDocument(source || "{}\n");
+  if (document.errors.length > 0) {
+    throw new Error(
+      `${path} is not valid YAML; use Goose's configuration screen to add tonnel-market.`,
+    );
+  }
+  document.setIn(segments, value);
+  writeTextFile(path, document.toString());
+}
+
 function readJsonObject(path: string): JsonObject {
   if (!existsSync(path)) return {};
   let parsed: unknown;
@@ -518,7 +747,7 @@ function printSetupHeader(plan: SetupPlan, dryRun: boolean): void {
   printLine(
     plan.clients.length > 0
       ? `Hosts: ${plan.clients.map(clientLabel).join(", ")}`
-      : "Hosts: none detected by command lookup",
+      : "Hosts: none will be configured; printing a generic MCP config",
   );
   printLine("");
 }
@@ -528,18 +757,75 @@ function printDryRunConfigs(plan: SetupPlan): void {
     printLine(`--- ${client}: ${plan.configPaths[client]} ---`);
     if (client === "codex") {
       printLine(renderCodexConfig(plan.server));
-    } else if (client === "claude") {
-      printLine(JSON.stringify(renderClaudeConfig(plan.server), null, 2));
-    } else if (client === "openclaw") {
-      printLine(JSON.stringify(renderOpenClawConfig(plan.server), null, 2));
+    } else if (client === "goose") {
+      printLine(
+        `extensions:\n  ${SERVER_NAME}:\n${indentText(
+          toYaml(renderGooseConfig(plan.server)),
+          4,
+        )}`,
+      );
     } else {
-      printLine(JSON.stringify(renderAntigravityConfig(plan.server), null, 2));
+      printLine(
+        JSON.stringify(renderClientConfig(client, plan.server), null, 2),
+      );
     }
   }
 }
 
+function renderClientConfig(
+  client: Exclude<SetupClient, "codex" | "goose">,
+  server: SetupServerConfig,
+): JsonObject {
+  switch (client) {
+    case "claude":
+      return renderClaudeConfig(server);
+    case "openclaw":
+      return renderOpenClawConfig(server);
+    case "antigravity":
+      return renderAntigravityConfig(server);
+    case "gemini":
+    case "cursor":
+    case "windsurf":
+      return renderStandardStdioConfig(server);
+    case "opencode":
+      return renderOpenCodeConfig(server);
+    case "vscode":
+      return renderVsCodeConfig(server);
+    case "pi":
+      return renderPiConfig(server);
+    case "cline":
+      return renderClineConfig(server);
+    case "zed":
+      return renderZedConfig(server);
+  }
+  throw new Error(`Unsupported setup client: ${client}`);
+}
+
+function toYaml(value: JsonObject): string {
+  return stringify(value).trimEnd();
+}
+
+function indentText(value: string, spaces: number): string {
+  const prefix = " ".repeat(spaces);
+  return value
+    .split("\n")
+    .map((line) => `${prefix}${line}`)
+    .join("\n");
+}
+
+function printClientNote(client: SetupClient): void {
+  if (client === "pi") {
+    printLine(
+      "Pi note: install `pi install npm:pi-mcp-extension` if Pi does not already have MCP support enabled.",
+    );
+  }
+  if (client === "goose") {
+    printLine("Goose exposes this MCP server as a stdio extension.");
+  }
+}
+
 function printGenericConfig(plan: SetupPlan): void {
-  printLine("No supported host was detected. Add this MCP server manually:");
+  printLine("No host will be configured. Add this MCP server manually:");
   printLine(
     JSON.stringify(
       {
@@ -566,9 +852,12 @@ function parseSetupRequest(value: string): SetupRequest {
   if (
     value === "auto" ||
     value === "all" ||
+    value === "generic" ||
     SETUP_CLIENTS.includes(value as SetupClient)
   ) {
     return value as SetupRequest;
   }
-  throw new Error(`--client must be auto, all, ${SETUP_CLIENTS.join(", ")}.`);
+  throw new Error(
+    `--client must be auto, all, generic, ${SETUP_CLIENTS.join(", ")}.`,
+  );
 }
