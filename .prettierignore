@@ -1,0 +1,6 @@
+node_modules/
+dist/
+coverage/
+.data/
+LUNA_MAX_TONNEL_MARKET_MCP_BUILD_PROMPT.md
+MARKETPLACE_EVENTS.md

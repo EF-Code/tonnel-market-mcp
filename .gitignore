@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+.data/
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.*
+!.env.example
+
+# Supplied build materials are intentionally local-only.
+LUNA_MAX_TONNEL_MARKET_MCP_BUILD_PROMPT.md
+MARKETPLACE_EVENTS.md

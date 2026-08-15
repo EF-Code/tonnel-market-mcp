@@ -1,0 +1,52 @@
+{
+  "name": "tonnel-market-mcp",
+  "version": "0.1.0",
+  "description": "Unofficial read-only MCP server for Tonnel marketplace events.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "tonnel-market-mcp": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "docs"
+  ],
+  "scripts": {
+    "dev": "npm run build && node --watch dist/cli.js --transport stdio",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/cli.js",
+    "start:stdio": "node dist/cli.js --transport stdio",
+    "start:http": "node dist/cli.js --transport http",
+    "migrate": "npm run build && node dist/cli.js --migrate-only",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "node scripts/lint.mjs",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "test": "npm run build && node --test dist/test/unit/*.test.js",
+    "test:integration": "npm run build && node --test dist/test/integration/*.test.js",
+    "test:security": "npm run build && node --test dist/test/security/*.test.js",
+    "test:protocol": "npm run build && node --test dist/test/protocol/*.test.js",
+    "test:live": "npm run build && node dist/scripts/live-smoke.js",
+    "verify": "npm run format && npm run lint && npm run typecheck && npm test && npm run test:integration && npm run test:security && npm run test:protocol && npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/node": "2.0.0",
+    "@modelcontextprotocol/server": "2.0.0",
+    "better-sqlite3": "13.0.3",
+    "ws": "8.18.1",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.3.0",
+    "@types/ws": "^8.18.1",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3"
+  }
+}
