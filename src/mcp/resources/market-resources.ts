@@ -20,16 +20,18 @@ export function registerMarketResources(
         "Collector start, replay availability, gaps, checkpoint, and snapshot limitations.",
       mimeType: "application/json",
     },
-    async (uri) =>
-      resource(
+    async (uri) => {
+      const coverage = services.coverage.get();
+      return resource(
         uri.href,
         marketResult({
-          data: services.coverage.get(),
-          coverage: services.coverage.get(),
+          data: coverage,
+          coverage,
           canonicalEventTypes: [],
-          warnings: services.coverage.warnings(services.coverage.get()),
+          warnings: services.coverage.warnings(coverage),
         }),
-      ),
+      );
+    },
   );
 
   server.registerResource(
