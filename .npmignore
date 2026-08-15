@@ -1,0 +1,6 @@
+dist/test/
+dist/scripts/*.d.ts
+dist/scripts/*.d.ts.map
+dist/scripts/*.js.map
+examples/
+test/
