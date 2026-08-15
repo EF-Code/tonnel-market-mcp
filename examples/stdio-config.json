@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "tonnel-market": {
+      "command": "node",
+      "args": ["<PROJECT_DIR>/dist/src/cli.js", "--transport", "stdio"],
+      "env": {
+        "TONNEL_MARKET_DB_PATH": "<PROJECT_DIR>/.data/tonnel-market.sqlite"
+      }
+    }
+  }
+}
