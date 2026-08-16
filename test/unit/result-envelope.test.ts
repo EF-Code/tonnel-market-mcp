@@ -16,6 +16,7 @@ test("successful market results expose provenance, warnings, and pagination", ()
         mode: "partial" as const,
         gaps: [],
         collectorStartedAt: "2026-08-15T00:00:00.000Z",
+        stream: { current: false },
         fullSnapshot: false,
       },
       canonicalEventTypes: ["sale.completed", "sale.completed"],

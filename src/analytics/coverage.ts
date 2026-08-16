@@ -10,6 +10,12 @@ export type CoverageEnvelope = {
   requestedTo?: string;
   availableFrom?: string;
   availableTo?: string;
+  stream: {
+    current: boolean;
+    availableFrom?: string;
+    availableTo?: string;
+  };
+  requestedWindowCovered?: boolean;
   complete: boolean;
   mode: "partial" | "seven_day_replay_baseline" | "full_snapshot";
   gaps: Array<{ from?: string; to?: string; reason: string }>;
@@ -18,12 +24,30 @@ export type CoverageEnvelope = {
   fullSnapshot: boolean;
 };
 
+export type CoverageWaitResult = {
+  ready: boolean;
+  waitedMs: number;
+  coverage: CoverageEnvelope;
+};
+
+export type CoverageServiceOptions = {
+  now?: () => string;
+  sleep?: (milliseconds: number) => Promise<void>;
+};
+
 export class CoverageService {
   constructor(
     private readonly coverage: CoverageRepository,
     private readonly events: EventRepository,
     private readonly database: DatabaseManager,
-  ) {}
+    options: CoverageServiceOptions = {},
+  ) {
+    this.now = options.now ?? (() => new Date().toISOString());
+    this.sleep = options.sleep ?? sleep;
+  }
+
+  private readonly now: () => string;
+  private readonly sleep: (milliseconds: number) => Promise<void>;
 
   get(requested: { from?: string; to?: string } = {}): CoverageEnvelope {
     const intervals = this.coverage.list();
@@ -36,15 +60,40 @@ export class CoverageService {
     );
     const availableFrom = minBoundary(available, "from");
     const availableTo = maxBoundary(available, "to");
-    const coversRequested =
-      (!requested.from || !availableFrom || availableFrom <= requested.from) &&
-      (!requested.to || !availableTo || availableTo >= requested.to);
-    const complete = state.fullSnapshot && coversRequested && gaps.length === 0;
+    const streamCurrent =
+      state.replayState === "completed" && state.websocketState === "connected";
+    const stream = {
+      current: streamCurrent,
+      ...(streamCurrent && state.lastReplayCompletedAt
+        ? { availableFrom: state.lastReplayCompletedAt }
+        : {}),
+      ...(streamCurrent ? { availableTo: this.now() } : {}),
+    };
+    const requestedWindowCovered =
+      requested.from !== undefined || requested.to !== undefined
+        ? coversWindow(
+            requested,
+            {
+              ...(availableFrom ? { from: availableFrom } : {}),
+              ...(availableTo ? { to: availableTo } : {}),
+            },
+            stream,
+            gaps.length === 0,
+          )
+        : undefined;
+    const complete =
+      state.fullSnapshot &&
+      (requestedWindowCovered ?? gaps.length === 0) &&
+      gaps.length === 0;
     return {
       ...(requested.from ? { requestedFrom: requested.from } : {}),
       ...(requested.to ? { requestedTo: requested.to } : {}),
       ...(availableFrom ? { availableFrom } : {}),
       ...(availableTo ? { availableTo } : {}),
+      stream,
+      ...(requestedWindowCovered !== undefined
+        ? { requestedWindowCovered }
+        : {}),
       complete,
       mode: state.fullSnapshot
         ? "full_snapshot"
@@ -79,6 +128,10 @@ export class CoverageService {
       warnings.push(
         "One or more replay or processing gaps overlap the requested interval.",
       );
+    if (envelope.requestedWindowCovered === false)
+      warnings.push(
+        "The collector has not reached the requested time window; an empty result is provisional. Wait for replayState=completed and websocketState=connected, then retry.",
+      );
     if (!envelope.complete)
       warnings.push(
         "Observed listings and floors must not be treated as complete marketplace state.",
@@ -86,9 +139,62 @@ export class CoverageService {
     return warnings;
   }
 
+  async waitForWindow(
+    requested: { from?: string; to?: string },
+    timeoutMs: number,
+  ): Promise<CoverageWaitResult> {
+    const startedAt = Date.now();
+    const boundedTimeout = Math.max(0, Math.floor(timeoutMs));
+    while (true) {
+      const coverage = this.get(requested);
+      if (coverage.requestedWindowCovered === true) {
+        return {
+          ready: true,
+          waitedMs: Date.now() - startedAt,
+          coverage,
+        };
+      }
+      const remaining = boundedTimeout - (Date.now() - startedAt);
+      if (remaining <= 0) {
+        return {
+          ready: false,
+          waitedMs: Date.now() - startedAt,
+          coverage,
+        };
+      }
+      await this.sleep(Math.min(250, remaining));
+    }
+  }
+
   migrationVersion(): number {
     return this.database.currentMigrationVersion();
   }
+}
+
+function coversWindow(
+  requested: { from?: string; to?: string },
+  available: { from?: string; to?: string },
+  stream: { current: boolean; availableFrom?: string; availableTo?: string },
+  gapFree: boolean,
+): boolean {
+  if (!gapFree) return false;
+  const fromCovered =
+    requested.from === undefined ||
+    (available.from !== undefined && available.from <= requested.from) ||
+    (stream.current &&
+      stream.availableFrom !== undefined &&
+      stream.availableFrom <= requested.from);
+  const toCovered =
+    requested.to === undefined ||
+    (available.to !== undefined && available.to >= requested.to) ||
+    (stream.current &&
+      stream.availableTo !== undefined &&
+      stream.availableTo >= requested.to);
+  return fromCovered && toCovered;
+}
+
+async function sleep(milliseconds: number): Promise<void> {
+  await new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function overlaps(
