@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.4 - 2026-08-16
 
 - Added explicit requested-window coverage and live-stream readiness to coverage envelopes.
 - Added `market_recent_listings`, which waits for bounded current-window readiness and labels timed-out empty results as provisional.
