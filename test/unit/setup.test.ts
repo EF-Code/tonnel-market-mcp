@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import test from "node:test";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,6 +21,7 @@ import {
   renderGooseConfig,
   renderOpenCodeConfig,
   renderPiConfig,
+  runSetup,
   renderVsCodeConfig,
   renderZedConfig,
 } from "../../src/setup.js";
@@ -171,6 +178,76 @@ test("host configuration renders the same stdio server contract", () => {
   );
 });
 
+test("published setup uses a stable npx package command", () => {
+  const npxRoot = mkdtempSync(join(tmpdir(), "tonnel-npx-setup-"));
+  const packageRoot = join(npxRoot, "node_modules", "tonnel-market-mcp");
+  mkdirSync(packageRoot, { recursive: true });
+  writeFileSync(
+    join(packageRoot, "package.json"),
+    JSON.stringify({ name: "tonnel-market-mcp", version: "0.1.3" }),
+  );
+
+  try {
+    const server = createStdioServerConfig(
+      join(npxRoot, "node_modules", ".bin", "tonnel-market-mcp"),
+      npxRoot,
+      "/data/tonnel.sqlite",
+    );
+
+    assert.equal(
+      server.command,
+      process.platform === "win32" ? "npx.cmd" : "npx",
+    );
+    assert.deepEqual(server.args, [
+      "-y",
+      "tonnel-market-mcp@0.1.3",
+      "--transport",
+      "stdio",
+    ]);
+    assert.equal(server.cwd, process.cwd());
+  } finally {
+    rmSync(npxRoot, { recursive: true, force: true });
+  }
+});
+
+test("OpenCode setup migrates the previous wrapper format", async () => {
+  const home = mkdtempSync(join(tmpdir(), "tonnel-opencode-setup-"));
+  const configPath = join(home, ".config", "opencode", "opencode.json");
+  const previousHome = process.env.TONNEL_MARKET_SETUP_HOME;
+  mkdirSync(join(home, ".config", "opencode"), { recursive: true });
+  writeFileSync(
+    configPath,
+    `${JSON.stringify(
+      {
+        mcp: {
+          servers: {
+            "tonnel-market": { type: "local", command: ["old"] },
+          },
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+
+  try {
+    process.env.TONNEL_MARKET_SETUP_HOME = home;
+    await runSetup(["--client", "opencode"]);
+    const config = JSON.parse(readFileSync(configPath, "utf8")) as {
+      mcp: Record<string, Record<string, unknown>>;
+    };
+    const serverConfig = config.mcp["tonnel-market"];
+    assert.ok(serverConfig);
+    assert.equal(config.mcp.servers, undefined);
+    assert.equal(serverConfig.type, "local");
+    assert.equal(serverConfig.enabled, true);
+  } finally {
+    if (previousHome === undefined) delete process.env.TONNEL_MARKET_SETUP_HOME;
+    else process.env.TONNEL_MARKET_SETUP_HOME = previousHome;
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test("new client renderers preserve the stdio contract", () => {
   const server = createStdioServerConfig(
     "/opt/tonnel/dist/src/cli.js",
@@ -188,6 +265,7 @@ test("new client renderers preserve the stdio contract", () => {
     ],
     cwd: "/opt/tonnel",
     environment: { TONNEL_MARKET_DB_PATH: "/data/tonnel.sqlite" },
+    enabled: true,
   });
   assert.deepEqual(renderVsCodeConfig(server), {
     type: "stdio",
