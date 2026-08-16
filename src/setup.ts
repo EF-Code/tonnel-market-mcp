@@ -280,7 +280,10 @@ export function parseSetupOptions(args: readonly string[]): SetupOptions {
   };
 }
 
-export async function runSetup(args: readonly string[]): Promise<void> {
+export async function runSetup(
+  args: readonly string[],
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<void> {
   const options = parseSetupOptions(args);
   if (options.help) {
     printSetupHelp();
@@ -288,6 +291,7 @@ export async function runSetup(args: readonly string[]): Promise<void> {
   }
   const plan = buildSetupPlan({
     requestedClient: options.requestedClient,
+    env,
     ...(options.databasePath ? { databasePath: options.databasePath } : {}),
   });
 
@@ -301,7 +305,7 @@ export async function runSetup(args: readonly string[]): Promise<void> {
     return;
   }
 
-  migrateSetupDatabase(plan.databasePath);
+  migrateSetupDatabase(plan.databasePath, env);
   const failures: string[] = [];
   for (const client of plan.clients) {
     try {
@@ -645,9 +649,12 @@ function configureOpenClaw(plan: SetupPlan): void {
   );
 }
 
-function migrateSetupDatabase(databasePath: string): void {
+function migrateSetupDatabase(
+  databasePath: string,
+  env: NodeJS.ProcessEnv = process.env,
+): void {
   const config = loadConfig({
-    ...process.env,
+    ...env,
     TONNEL_MARKET_DB_PATH: databasePath,
     TONNEL_MARKET_LOG_LEVEL: "error",
     TONNEL_MARKET_MCP_TRANSPORT: "stdio",
