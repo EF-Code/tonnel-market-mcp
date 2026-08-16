@@ -212,9 +212,9 @@ test("published setup uses a stable npx package command", () => {
 
 test("OpenCode setup migrates the previous wrapper format", async () => {
   const home = mkdtempSync(join(tmpdir(), "tonnel-opencode-setup-"));
-  const configPath = join(home, ".config", "opencode", "opencode.json");
-  const previousHome = process.env.TONNEL_MARKET_SETUP_HOME;
-  mkdirSync(join(home, ".config", "opencode"), { recursive: true });
+  const xdgConfigHome = join(home, "xdg-config");
+  const configPath = join(xdgConfigHome, "opencode", "opencode.json");
+  mkdirSync(join(xdgConfigHome, "opencode"), { recursive: true });
   writeFileSync(
     configPath,
     `${JSON.stringify(
@@ -231,8 +231,12 @@ test("OpenCode setup migrates the previous wrapper format", async () => {
   );
 
   try {
-    process.env.TONNEL_MARKET_SETUP_HOME = home;
-    await runSetup(["--client", "opencode"]);
+    await runSetup(["--client", "opencode"], {
+      ...process.env,
+      TONNEL_MARKET_SETUP_HOME: home,
+      XDG_CONFIG_HOME: xdgConfigHome,
+      XDG_DATA_HOME: join(home, "xdg-data"),
+    });
     const config = JSON.parse(readFileSync(configPath, "utf8")) as {
       mcp: Record<string, Record<string, unknown>>;
     };
@@ -242,8 +246,6 @@ test("OpenCode setup migrates the previous wrapper format", async () => {
     assert.equal(serverConfig.type, "local");
     assert.equal(serverConfig.enabled, true);
   } finally {
-    if (previousHome === undefined) delete process.env.TONNEL_MARKET_SETUP_HOME;
-    else process.env.TONNEL_MARKET_SETUP_HOME = previousHome;
     rmSync(home, { recursive: true, force: true });
   }
 });
