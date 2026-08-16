@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   marketCreateAlertSchema,
   marketFindOpportunitiesSchema,
+  marketRecentListingsSchema,
   marketSearchSchema,
 } from "../../src/mcp/schemas.js";
 
@@ -11,6 +12,13 @@ test("MCP query inputs apply bounded defaults and reject reversed windows", () =
   const parsed = marketSearchSchema.parse({ giftId: 123 });
   assert.equal(parsed.limit, 50);
   assert.equal(parsed.sort, "occurred_desc");
+  const recent = marketRecentListingsSchema.parse({});
+  assert.equal(recent.minutes, 5);
+  assert.equal(recent.waitSeconds, 30);
+  assert.deepEqual(recent.eventTypes, [
+    "listing.created",
+    "listing.price_changed",
+  ]);
   assert.throws(
     () =>
       marketSearchSchema.parse({

@@ -47,6 +47,7 @@ test("official MCP client can discover and invoke the server contract", async ()
       "market_gift_history",
       "market_health",
       "market_list_alerts",
+      "market_recent_listings",
       "market_sales_summary",
       "market_search",
       "market_test_alert",
@@ -86,6 +87,22 @@ test("official MCP client can discover and invoke the server contract", async ()
       data?: { migrationVersion?: number };
     };
     assert.equal(healthData.data?.migrationVersion, 1);
+
+    const recent = await client.callTool({
+      name: "market_recent_listings",
+      arguments: {
+        minutes: 5,
+        to: "2026-08-15T01:00:00.000Z",
+        waitSeconds: 0,
+      },
+    });
+    assert.equal(recent.isError, undefined);
+    const recentData = recent.structuredContent as {
+      data?: { ready?: boolean };
+      coverage?: { requestedWindowCovered?: boolean };
+    };
+    assert.equal(recentData.data?.ready, false);
+    assert.equal(recentData.coverage?.requestedWindowCovered, false);
 
     const coverage = await client.readResource({ uri: "market://coverage" });
     assert.equal(coverage.contents.length, 1);

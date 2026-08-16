@@ -64,6 +64,27 @@ export const marketSearchSchema = z
     validatePriceBounds(value, context);
   });
 
+export const marketRecentListingsSchema = z.object({
+  minutes: z.number().int().min(1).max(1_440).default(5),
+  to: isoUtc.optional(),
+  eventTypes: z
+    .array(z.enum(["listing.created", "listing.price_changed"]))
+    .min(1)
+    .max(2)
+    .default(["listing.created", "listing.price_changed"]),
+  giftId: z.number().int().positive().optional(),
+  giftNum: z.number().int().positive().optional(),
+  giftName: traitString,
+  model: traitString,
+  backdrop: traitString,
+  symbol: traitString,
+  asset: traitString,
+  saleType: z.enum(["FIXED", "DUTCH"]).optional(),
+  source: z.enum(["LISTING", "DUTCH", "BUY_OFFER", "AUCTION"]).optional(),
+  limit: boundedLimit,
+  waitSeconds: z.number().int().min(0).max(300).default(30),
+});
+
 export const marketGiftHistorySchema = z
   .object({
     giftId: z.number().int().positive(),
@@ -195,6 +216,9 @@ export const marketTestAlertSchema = z.object({
 });
 
 export type MarketSearchInput = z.infer<typeof marketSearchSchema>;
+export type MarketRecentListingsInput = z.infer<
+  typeof marketRecentListingsSchema
+>;
 export type MarketGiftHistoryInput = z.infer<typeof marketGiftHistorySchema>;
 export type MarketSalesSummaryInput = z.infer<typeof marketSalesSummarySchema>;
 export type MarketAuctionStatusInput = z.infer<

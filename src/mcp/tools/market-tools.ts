@@ -8,6 +8,7 @@ import {
   marketFindOpportunitiesSchema,
   marketGiftHistorySchema,
   marketHealthSchema,
+  marketRecentListingsSchema,
   marketSalesSummarySchema,
   marketSearchSchema,
 } from "../schemas.js";
@@ -26,6 +27,75 @@ export function registerMarketTools(
   services: RuntimeServices,
 ): void {
   const analytics = new MarketAnalytics(services.query, services.coverage);
+
+  server.registerTool(
+    "market_recent_listings",
+    {
+      title: "Read recent listing observations",
+      description:
+        "Find recent listing.created and listing.price_changed observations in a UTC window. The tool waits for the replay-first local collector up to waitSeconds and reports ready=false when an empty result is provisional.",
+      inputSchema: marketRecentListingsSchema,
+      annotations: readOnlyAnnotations,
+    },
+    async (input) => {
+      try {
+        const to = input.to ?? new Date().toISOString();
+        const from = new Date(
+          Date.parse(to) - input.minutes * 60 * 1_000,
+        ).toISOString();
+        const wait = await services.coverage.waitForWindow(
+          { from, to },
+          input.waitSeconds * 1_000,
+        );
+        const result = analytics.search(
+          stripUndefined({
+            giftId: input.giftId,
+            giftNum: input.giftNum,
+            giftName: input.giftName,
+            model: input.model,
+            backdrop: input.backdrop,
+            symbol: input.symbol,
+            asset: input.asset,
+            saleType: input.saleType,
+            source: input.source,
+            eventTypes: input.eventTypes,
+            from,
+            to,
+            sort: "occurred_desc",
+            limit: input.limit,
+          }) as SearchOptions,
+        );
+        const ready =
+          wait.ready && result.coverage.requestedWindowCovered === true;
+        return toolSuccess(
+          marketResult({
+            data: {
+              from,
+              to,
+              minutes: input.minutes,
+              ready,
+              waitedMs: wait.waitedMs,
+              observations: result.data.observations,
+            },
+            coverage: result.coverage,
+            canonicalEventTypes: result.canonicalEventTypes,
+            eventIds: result.eventIds,
+            warnings: [
+              ...result.warnings,
+              ...(ready
+                ? []
+                : [
+                    `The requested window was not fully covered within ${input.waitSeconds} seconds; an empty result is provisional.`,
+                  ]),
+            ],
+            nextCursor: result.nextCursor,
+          }),
+        );
+      } catch (error) {
+        return toolFailure(error);
+      }
+    },
+  );
 
   server.registerTool(
     "market_search",
