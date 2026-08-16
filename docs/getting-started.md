@@ -84,4 +84,6 @@ The server exposes bounded market search, gift history, sales summaries, auction
 
 Results can be incomplete because the upstream replay window is approximately seven days and does not provide a complete active-market snapshot. Use `market_health` or `market://coverage` before relying on a result.
 
+For a general current-window query, ask the client to use `market_recent_listings` with its default five-minute window. It waits briefly for the initial replay; if `data.ready` is false, keep the collector running and retry rather than interpreting an empty list as proof of no activity.
+
 For manual host configuration and the complete MCP surface, see the [README](../README.md) and [tool reference](tool-reference.md).

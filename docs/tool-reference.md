@@ -22,6 +22,14 @@ All tool calls are schema-validated and bounded. Market query results use:
 
 Optional filters: `giftId`, `giftNum`, `giftName`, `model`, `backdrop`, `symbol`, `eventTypes`, `asset`, `saleType`, `source`, `minPrice`, `maxPrice`, `from`, `to`, `sort`, `limit`, and `cursor`. `sort` is one of `occurred_desc`, `occurred_asc`, `price_asc`, or `price_desc`; `limit` is `1..500` and defaults to `50`.
 
+If `from` or `to` is supplied, inspect `coverage.requestedWindowCovered`. A false value means the local collector has not reached the requested window yet; an empty result is provisional.
+
+### `market_recent_listings`
+
+Returns general recent `listing.created` and `listing.price_changed` observations. `minutes` defaults to `5` and is bounded to `1..1440`; `to` defaults to the current UTC time. Optional filters include `giftId`, `giftNum`, `giftName`, `model`, `backdrop`, `symbol`, `asset`, `saleType`, `source`, `eventTypes`, and `limit`.
+
+The tool waits up to `waitSeconds` (default `30`, bounded to `0..300`) for replay to catch up and the WebSocket to become current. `data.ready` is the convenience flag for this call. If it is false, treat zero observations as “not established,” not as proof that no listing occurred.
+
 ### `market_gift_history`
 
 Required: positive `giftId`. Optional: `from`, `to`, allowlisted `eventTypes`, bounded `limit`, and opaque `cursor`. Results are chronological observations and never identity records.
@@ -40,7 +48,7 @@ Required: `strategy`, `lookbackFrom`, `lookbackTo`; supported strategies are `be
 
 ### `market_health`
 
-Takes an empty object and returns collector, WebSocket, replay, checkpoint, lag, duplicate, unknown-event, processing-error, coverage-gap, and migration state. It omits credentials, local paths, and stack traces.
+Takes an empty object and returns collector, WebSocket, replay, checkpoint, lag, duplicate, unknown-event, processing-error, coverage-gap, and migration state. `coverage.stream.current` is true only after replay has completed and the live WebSocket is connected. It omits credentials, local paths, and stack traces.
 
 ## Local alert tools
 

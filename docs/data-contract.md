@@ -42,6 +42,8 @@ The replay service retains seven days and does not expose a full active-market s
 
 Gaps are recorded for expired cursors and other known discontinuities. A result is `complete` only when a full snapshot exists, the requested interval is covered, and no overlapping gaps exist.
 
+For time-bounded queries, `requestedWindowCovered` is the separate readiness signal. It can be true for a connected replay-complete stream even though `complete` remains false because the upstream does not provide a full active-market snapshot. `stream.current` is true only when replay has completed and the WebSocket is connected; an empty result with `requestedWindowCovered: false` is provisional.
+
 ## Definitions
 
 - **Sales count:** number of `sale.completed` events.

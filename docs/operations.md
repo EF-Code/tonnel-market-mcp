@@ -24,6 +24,7 @@ Use `market_health` or `market://coverage` to inspect:
 - Replay state and cursor-expiry count.
 - Duplicate, unknown-event, and processing-error counters.
 - Coverage mode and overlapping gaps.
+- Whether `coverage.stream.current` is true and whether a requested window reports `requestedWindowCovered`.
 
 On an expired cursor, the collector records a gap, replays from the retention boundary, and resumes. A gap is expected to remain visible; do not remove it to make a result look complete.
 

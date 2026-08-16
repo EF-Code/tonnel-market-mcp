@@ -150,6 +150,7 @@ See [.env.example](.env.example) and [examples/config.example.env](examples/conf
 Market query tools return `data`, a coverage envelope, provenance, warnings, and an optional opaque pagination cursor:
 
 - `market_search` — bounded raw/projected observation search.
+- `market_recent_listings` — recent general listing observations with a bounded readiness wait.
 - `market_gift_history` — chronological events involving one public gift ID.
 - `market_sales_summary` — `sale.completed` statistics, split by asset.
 - `market_auction_status` — auction lifecycle, observed bids, and extensions.
@@ -177,6 +178,8 @@ The prompt and tool wording tells consuming models to separate direct event fact
 ## Coverage and analytical limits
 
 The replay API retains approximately seven days and does not provide a complete active-market snapshot. A newly started collector therefore cannot prove a complete inventory or marketplace floor. Every market result reports one of `partial`, `seven_day_replay_baseline`, or `full_snapshot`, plus explicit gaps and warnings. This implementation does not mark a full snapshot because the supplied upstream contract does not provide one.
+
+For a time-bounded query, `coverage.requestedWindowCovered` separates “the local ledger has checked this window” from the stronger `complete` flag. `complete` remains false without a full active-market snapshot. The recent-listings tool waits for this window coverage and returns `data.ready`; if it times out, an empty result is provisional.
 
 Sales are counted only from `sale.completed`; `auction.finished` is not counted as a second sale. Volumes and statistics never combine unlike assets. The upstream API has no stable `listing_id`, so listing timelines are observed event sequences rather than guaranteed listing lifecycles. Bid counts are observed bid-event counts, not unique bidder counts. Dutch decay is not estimated because the upstream contract does not define its formula.
 
@@ -206,7 +209,7 @@ npm run test:live
 ## Troubleshooting
 
 - **Expired cursor:** the collector records a visible coverage gap and restarts replay without `after`; inspect `market_health` and `market://coverage`.
-- **Stale or incomplete results:** check replay state, `lastCommittedEventId`, coverage mode, gaps, and the collector start time. A seven-day baseline is not a full snapshot.
+- **Stale or incomplete results:** check replay state, `lastCommittedEventId`, `coverage.stream.current`, `requestedWindowCovered`, coverage mode, gaps, and the collector start time. A seven-day baseline is not a full snapshot. A false `requestedWindowCovered` value makes an empty result provisional; keep the collector running and retry.
 - **Database lock:** stop duplicate collectors using the same path, keep WAL sidecars together, and allow the configured SQLite busy timeout to work before investigating filesystem or process ownership.
 - **Protocol errors:** keep stdout untouched in stdio mode. Send application diagnostics to stderr and use the structured correlation ID returned by tool failures.
 - **Native SQLite installation:** if npm cannot use a prebuilt `better-sqlite3` binary for your Node version, install the platform C/C++ build prerequisites and run `npm rebuild better-sqlite3`.
