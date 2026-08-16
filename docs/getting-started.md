@@ -12,6 +12,12 @@ npx -y tonnel-market-mcp setup
 
 The command downloads the package, builds no local source checkout, detects supported MCP hosts, and writes their local stdio configuration. Node.js 22 or newer is required.
 
+For OpenCode, the installer writes the server directly under `mcp` and enables it. If you ran setup with version 0.1.2 and OpenCode now reports an invalid `mcp.servers` configuration, rerun:
+
+```sh
+npx -y tonnel-market-mcp@0.1.3 setup --client opencode
+```
+
 ## Source installation from GitHub
 
 ```sh
