@@ -13,21 +13,26 @@ const objectWithUnknownFields = <T extends z.ZodRawShape>(shape: T) =>
   z.object(shape).catchall(z.unknown());
 
 const nonEmptyString = z.string().min(1).max(2_000);
-const positiveInteger = z.number().int().positive();
-const nonNegativeInteger = z.number().int().nonnegative();
+const safeInteger = z.number().int().safe();
+const positiveInteger = safeInteger.positive();
+const anyInteger = safeInteger;
+const nonNegativeInteger = safeInteger.nonnegative();
 const nonNegativeNumber = z.number().finite().nonnegative();
+const stringIdentifier = z
+  .union([nonEmptyString, safeInteger])
+  .transform(String);
 const isoDate = z.string().refine((value) => {
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) && value.endsWith("Z");
 }, "Expected an ISO 8601 UTC timestamp ending in Z");
 
 const publicGiftSchema = objectWithUnknownFields({
-  gift_id: positiveInteger,
+  gift_id: anyInteger,
   gift_num: positiveInteger,
   gift_name: nonEmptyString,
-  model: nonEmptyString,
-  backdrop: nonEmptyString,
-  symbol: nonEmptyString,
+  model: z.string().max(2_000),
+  backdrop: z.string().max(2_000),
+  symbol: z.string().max(2_000),
 });
 
 const assetSchema = nonEmptyString.max(64);
@@ -68,7 +73,7 @@ const eventDataSchemas = {
   "listing.promoted": objectWithUnknownFields({
     gift: publicGiftSchema,
     target: z.enum(["LISTING", "AUCTION"]),
-    auction_id: nonEmptyString.optional(),
+    auction_id: stringIdentifier.optional(),
     promotion_started_at: isoDate.optional(),
   }),
   "listing.promotion_ended": objectWithUnknownFields({
@@ -83,7 +88,7 @@ const eventDataSchemas = {
     source: saleSourceSchema,
   }),
   "auction.created": objectWithUnknownFields({
-    auction_id: nonEmptyString,
+    auction_id: stringIdentifier,
     gift: publicGiftSchema,
     starting_bid: nonNegativeNumber,
     asset: assetSchema,
@@ -91,29 +96,29 @@ const eventDataSchemas = {
     ends_at: isoDate,
   }),
   "auction.bid_placed": objectWithUnknownFields({
-    auction_id: nonEmptyString,
+    auction_id: stringIdentifier,
     gift: publicGiftSchema,
     amount: nonNegativeNumber,
     asset: assetSchema,
     ends_at: isoDate,
   }),
   "auction.extended": objectWithUnknownFields({
-    auction_id: nonEmptyString,
-    gift_id: positiveInteger,
+    auction_id: stringIdentifier,
+    gift_id: anyInteger,
     previous_ends_at: isoDate,
     ends_at: isoDate,
   }),
   "auction.cancelled": objectWithUnknownFields({
-    auction_id: nonEmptyString,
-    gift_id: positiveInteger,
+    auction_id: stringIdentifier,
+    gift_id: anyInteger,
   }),
   "auction.finished": objectWithUnknownFields({
-    auction_id: nonEmptyString,
+    auction_id: stringIdentifier,
     status: z.enum(["SOLD", "NO_BIDS"]),
     gift: publicGiftSchema.optional(),
     winning_bid: nonNegativeNumber.optional(),
     asset: assetSchema.optional(),
-    gift_id: positiveInteger.optional(),
+    gift_id: anyInteger.optional(),
   }).superRefine((value, context) => {
     if (value.status === "SOLD") {
       if (
@@ -134,35 +139,35 @@ const eventDataSchemas = {
     }
   }),
   "buy_offer.created": objectWithUnknownFields({
-    offer_id: nonEmptyString,
+    offer_id: stringIdentifier,
     gift: publicGiftSchema,
     price: nonNegativeNumber,
     asset: assetSchema,
   }),
   "buy_offer.countered": objectWithUnknownFields({
-    offer_id: nonEmptyString,
+    offer_id: stringIdentifier,
     gift: publicGiftSchema,
     original_price: nonNegativeNumber,
     counter_price: nonNegativeNumber,
     asset: assetSchema,
   }),
   "buy_offer.accepted": objectWithUnknownFields({
-    offer_id: nonEmptyString,
-    gift_id: positiveInteger,
+    offer_id: stringIdentifier,
+    gift_id: anyInteger,
     price: nonNegativeNumber,
     asset: assetSchema,
     stage: z.enum(["OFFER", "COUNTER"]),
   }),
   "buy_offer.rejected": objectWithUnknownFields({
-    offer_id: nonEmptyString,
-    gift_id: positiveInteger,
+    offer_id: stringIdentifier,
+    gift_id: anyInteger,
     price: nonNegativeNumber,
     asset: assetSchema,
     stage: z.enum(["OFFER", "COUNTER"]),
   }),
   "buy_offer.cancelled": objectWithUnknownFields({
-    offer_id: nonEmptyString,
-    gift_id: positiveInteger,
+    offer_id: stringIdentifier,
+    gift_id: anyInteger,
     price: nonNegativeNumber,
     asset: assetSchema,
   }),
@@ -189,29 +194,29 @@ const eventDataSchemas = {
     asset: assetSchema,
   }),
   "bundle.created": objectWithUnknownFields({
-    bundle_id: nonEmptyString,
+    bundle_id: stringIdentifier,
     gift_ids: z.array(positiveInteger).max(1_000),
   }),
   "bundle.debundled": objectWithUnknownFields({
-    bundle_id: nonEmptyString,
+    bundle_id: stringIdentifier,
     gift_ids: z.array(positiveInteger).max(1_000),
   }),
   "trade.created": objectWithUnknownFields({
-    trade_id: nonEmptyString,
+    trade_id: stringIdentifier,
     gift_ids: z.array(positiveInteger).max(1_000),
     amount: nonNegativeNumber,
     asset: assetSchema,
   }),
   "trade.offer_created": objectWithUnknownFields({
-    trade_id: nonEmptyString,
-    offer_id: nonEmptyString,
+    trade_id: stringIdentifier,
+    offer_id: stringIdentifier,
     gift_ids: z.array(positiveInteger).max(1_000),
     amount: nonNegativeNumber,
     asset: assetSchema,
   }),
   "trade.completed": objectWithUnknownFields({
-    trade_id: nonEmptyString,
-    offer_id: nonEmptyString,
+    trade_id: stringIdentifier,
+    offer_id: stringIdentifier,
     requested_gift_ids: z.array(positiveInteger).max(1_000),
     offered_gift_ids: z.array(positiveInteger).max(1_000),
     requested_amount: nonNegativeNumber,
@@ -220,7 +225,7 @@ const eventDataSchemas = {
     offered_asset: assetSchema,
   }),
   "trade.cancelled": objectWithUnknownFields({
-    trade_id: nonEmptyString,
+    trade_id: stringIdentifier,
     gift_ids: z.array(positiveInteger).max(1_000),
   }),
 } as const;
