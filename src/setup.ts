@@ -76,16 +76,29 @@ type SetupOptions = {
 type JsonObject = Record<string, unknown>;
 
 const SERVER_NAME = "tonnel-market";
+const PACKAGE_NAME = "tonnel-market-mcp";
 
 export function createStdioServerConfig(
   entrypoint: string,
   projectRoot: string,
   databasePath: string,
 ): SetupServerConfig {
+  const useNpxCommand = isNpxEntrypoint(entrypoint);
   return {
-    command: process.execPath,
-    args: [entrypoint, "--transport", "stdio"],
-    cwd: projectRoot,
+    command: useNpxCommand
+      ? process.platform === "win32"
+        ? "npx.cmd"
+        : "npx"
+      : process.execPath,
+    args: useNpxCommand
+      ? [
+          "-y",
+          `${PACKAGE_NAME}@${readPackageVersion(projectRoot, entrypoint) ?? "latest"}`,
+          "--transport",
+          "stdio",
+        ]
+      : [entrypoint, "--transport", "stdio"],
+    cwd: useNpxCommand ? process.cwd() : projectRoot,
     env: {
       TONNEL_MARKET_DB_PATH: databasePath,
     },
@@ -178,6 +191,7 @@ export function renderOpenCodeConfig(server: SetupServerConfig): JsonObject {
     command: [server.command, ...server.args],
     cwd: server.cwd,
     environment: server.env,
+    enabled: true,
   };
 }
 
@@ -516,11 +530,7 @@ function configureClient(client: SetupClient, plan: SetupPlan): void {
       );
       return;
     case "opencode":
-      updateJsonConfig(
-        plan.configPaths.opencode,
-        ["mcp", "servers", SERVER_NAME],
-        renderOpenCodeConfig(plan.server),
-      );
+      configureOpenCode(plan);
       return;
     case "cursor":
     case "windsurf":
@@ -558,6 +568,34 @@ function configureClient(client: SetupClient, plan: SetupPlan): void {
       );
       return;
   }
+}
+
+function configureOpenCode(plan: SetupPlan): void {
+  const path = plan.configPaths.opencode;
+  const root = readJsonObject(path);
+  const existingMcp = root.mcp;
+  if (existingMcp !== undefined && !isJsonObject(existingMcp)) {
+    throw new Error(`${path} has a non-object mcp value.`);
+  }
+  const mcp = existingMcp ?? {};
+  const existingServers = mcp.servers;
+  if (existingServers !== undefined) {
+    if (!isJsonObject(existingServers)) {
+      throw new Error(`${path} has a non-object mcp.servers value.`);
+    }
+    const otherServers = Object.keys(existingServers).filter(
+      (name) => name !== SERVER_NAME,
+    );
+    if (otherServers.length > 0) {
+      throw new Error(
+        `${path} uses OpenCode V2's mcp.servers format for other servers; migrate those entries before running setup.`,
+      );
+    }
+    delete mcp.servers;
+  }
+  mcp[SERVER_NAME] = renderOpenCodeConfig(plan.server);
+  root.mcp = mcp;
+  writeTextFile(path, `${JSON.stringify(root, null, 2)}\n`);
 }
 
 function configureVsCode(plan: SetupPlan): void {
@@ -860,4 +898,38 @@ function parseSetupRequest(value: string): SetupRequest {
   throw new Error(
     `--client must be auto, all, generic, ${SETUP_CLIENTS.join(", ")}.`,
   );
+}
+
+function isNpxEntrypoint(entrypoint: string): boolean {
+  const normalized = entrypoint.replaceAll("\\", "/");
+  return (
+    normalized.includes("/.npm/_npx/") ||
+    normalized.includes("/node_modules/.bin/tonnel-market-mcp")
+  );
+}
+
+function readPackageVersion(
+  projectRoot: string,
+  entrypoint?: string,
+): string | undefined {
+  const packageManifests = [join(projectRoot, "package.json")];
+  if (entrypoint && isNpxEntrypoint(entrypoint)) {
+    packageManifests.push(
+      join(dirname(dirname(entrypoint)), PACKAGE_NAME, "package.json"),
+    );
+  }
+
+  for (const packageManifest of packageManifests) {
+    try {
+      const parsed = JSON.parse(
+        readFileSync(packageManifest, "utf8"),
+      ) as unknown;
+      if (isJsonObject(parsed) && typeof parsed.version === "string") {
+        return parsed.version;
+      }
+    } catch {
+      // A source checkout or unusual launcher may not have a package manifest here.
+    }
+  }
+  return undefined;
 }
