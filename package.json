@@ -61,7 +61,7 @@
     "verify": "npm run format && npm run lint && npm run typecheck && npm test && npm run test:integration && npm run test:security && npm run test:protocol && npm run build"
   },
   "dependencies": {
-    "@modelcontextprotocol/node": "2.0.0",
+    "@modelcontextprotocol/node": "2.1.0",
     "@modelcontextprotocol/server": "2.0.0",
     "better-sqlite3": "13.0.3",
     "yaml": "2.9.0",
